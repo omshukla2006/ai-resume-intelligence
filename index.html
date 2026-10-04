@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Resume Intelligence</title><link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar"><div class="brand"><span class="brand-mark">RI</span><div><strong>Resume Intelligence</strong><small>AI-powered resume & job analysis</small></div></div><span class="status">● Analysis Engine Ready</span></header>
+<main class="container">
+  <section class="hero"><div><p class="eyebrow">AI CAREER ANALYST</p><h1>Understand exactly how your resume fits the job.</h1><p class="sub">Evidence-based matching, resume understanding, skill-gap analysis, ATS review and actionable improvements.</p></div></section>
+  <section class="panel input-panel"><form id="analysisForm">
+    <div class="grid two"><label>Resume PDF<input id="resume" name="resume" type="file" accept="application/pdf" required></label><label>Target role<input id="jobTitle" name="job_title" type="text" placeholder="e.g. Machine Learning Engineer"></label></div>
+    <label>Job description<textarea id="jobDescription" name="job_description" rows="12" placeholder="Paste the complete job description here..." required></textarea></label>
+    <button id="analyzeBtn" type="submit">Analyze my resume <span>→</span></button>
+    <p class="hint">Use a complete job description for the most useful requirement and skill analysis.</p>
+  </form></section>
+  <div id="loading" class="loading hidden">Reading resume evidence, understanding requirements and comparing both…</div>
+  <div id="error" class="error hidden"></div><section id="results" class="hidden"></section>
+</main>
+<script>
+const form=document.getElementById('analysisForm'),results=document.getElementById('results'),loading=document.getElementById('loading'),errorBox=document.getElementById('error'),btn=document.getElementById('analyzeBtn');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const list=(arr,cls='')=>arr?.length?`<ul class="${cls}">${arr.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="muted">No items detected.</p>';
+const chips=(arr,empty='None detected')=>arr?.length?`<div class="chips">${arr.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:`<p class="muted">${empty}</p>`;
+const scoreBar=(v)=>`<div class="bar"><i style="width:${Math.max(0,Math.min(100,Number(v)||0))}%"></i></div>`;
+function render(d){
+ const score=Math.round(d.score||0), p=d.resume_profile||{}, j=d.job_profile||{};
+ const projects=p.projects||[], experience=p.experience||[];
+ results.innerHTML=`
+ <div class="score-row"><div><p class="eyebrow">ANALYSIS REPORT</p><h2>${esc(d.job_title)}</h2><p class="muted">${esc(d.filename)} · ${esc(d.ai_status||'evidence analysis')}</p></div><div class="score"><b>${score}</b><span>/ 100</span><small>resume alignment</small></div></div>
+ <div class="metrics"><div><b>${d.semantic_similarity}%</b><span>Semantic relevance</span>${scoreBar(d.semantic_similarity)}</div><div><b>${d.skill_match}%</b><span>Skill coverage</span>${scoreBar(d.skill_match)}</div><div><b>${d.project_relevance}%</b><span>Project relevance</span>${scoreBar(d.project_relevance)}</div><div><b>${d.experience_relevance}%</b><span>Experience relevance</span>${scoreBar(d.experience_relevance)}</div></div>
+ <div class="report-grid">
+  <article class="card wide"><h3>Executive assessment</h3><p>${esc(d.executive_summary)}</p></article>
+  <article class="card"><h3>Strong alignment</h3>${list(d.strengths)}</article>
+  <article class="card"><h3>Priority gaps</h3>${list(d.gaps)}</article>
+  <article class="card"><h3>Matched skills</h3>${chips(d.matched_skills)}</article>
+  <article class="card"><h3>Missing / weak evidence</h3>${chips(d.missing_skills)}</article>
+  <article class="card wide"><h3>Resume evidence detected</h3><div class="evidence-grid"><div><b>Sections</b>${chips(Object.keys(p.sections||{}).filter(k=>p.sections[k]),'No standard sections detected')}</div><div><b>Contact</b><p>Email: ${p.contact?.email?'✓':'✕'} · Phone: ${p.contact?.phone?'✓':'✕'} · LinkedIn: ${p.contact?.linkedin?'✓':'✕'} · GitHub: ${p.contact?.github?'✓':'✕'}</p></div><div><b>Projects</b><p>${projects.length} evidence item(s)</p></div><div><b>Experience</b><p>${experience.length} evidence item(s)</p></div></div></article>
+  <article class="card wide"><h3>Experience alignment</h3><p>${esc(d.experience_alignment)}</p>${experience.length?`<div class="evidence-list">${experience.slice(0,5).map(x=>`<div><b>Evidence</b><p>${esc(x.text)}</p>${x.technologies?.length?`<small>Technologies: ${esc(x.technologies.join(', '))}</small>`:''}</div>`).join('')}</div>`:''}</article>
+  <article class="card wide"><h3>Project alignment</h3><p>${esc(d.project_alignment)}</p>${projects.length?`<div class="evidence-list">${projects.slice(0,5).map(x=>`<div><b>Project evidence</b><p>${esc(x.text)}</p>${x.technologies?.length?`<small>Technologies: ${esc(x.technologies.join(', '))} · Result evidence: ${x.has_result?'detected':'not detected'}</small>`:''}</div>`).join('')}</div>`:''}</article>
+  <article class="card wide"><h3>ATS & resume quality</h3><p>${esc(d.ats_analysis)}</p>${list(d.quality_flags,'warnings')}</article>
+  <article class="card wide"><h3>What to improve first</h3>${list(d.priority_actions,'numbered')}</article>
+  <article class="card wide"><h3>Evidence-preserving rewrite ideas</h3>${d.rewrite_examples?.length?d.rewrite_examples.map(x=>`<div class="rewrite"><div><b>Current</b><p>${esc(x.original)}</p></div><div><b>Improved</b><p>${esc(x.improved)}</p></div><small>${esc(x.reason)}</small></div>`).join(''):'<p class="muted">No rewrite candidates were detected.</p>'}</article>
+  <article class="card wide"><h3>Interview preparation</h3>${list(d.interview_questions,'questions')}</article>
+ </div>`;
+ results.classList.remove('hidden');results.scrollIntoView({behavior:'smooth',block:'start'});
+}
+form.addEventListener('submit',async e=>{e.preventDefault();loading.classList.remove('hidden');errorBox.classList.add('hidden');results.classList.add('hidden');btn.disabled=true;try{const r=await fetch('/api/analyze',{method:'POST',body:new FormData(form)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Analysis failed');render(d)}catch(err){errorBox.textContent=err.message;errorBox.classList.remove('hidden')}finally{loading.classList.add('hidden');btn.disabled=false}});
+</script></body></html>
